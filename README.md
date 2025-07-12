@@ -3,5 +3,5 @@ Superscale is a plug-and-play super-resolution toolkit.  Run the latest 6 SOTA m
 
 
 <p align="center">
-  <img src="ttps://github.com/user-attachments/assets/bb66114e-39a5-46cf-a965-5a5660902a56" alt="EdgeLLM" width="350"/>
+  <img src="https://private-user-images.githubusercontent.com/23278992/465662483-bb66114e-39a5-46cf-a965-5a5660902a56.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTIzNTQ1ODcsIm5iZiI6MTc1MjM1NDI4NywicGF0aCI6Ii8yMzI3ODk5Mi80NjU2NjI0ODMtYmI2NjExNGUtMzlhNS00NmNmLWE5NjUtNWE1NjYwOTAyYTU2LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTA3MTIlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwNzEyVDIxMDQ0N1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTcwYTY0MDBmYmUyZGIzYjgwM2I4YTgzZWM5ZjhiODE1YTJkNDE5OTQ3OGQzY2E3YTdjN2EzY2UxMmMzNThlZTQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.eF7eD-TTBCX7l6q3H0mv4Wme1MlzhRw9SSeGBAL6itM" alt="logo" width="350"/>
 </p>
