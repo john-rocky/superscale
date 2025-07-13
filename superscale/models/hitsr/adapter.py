@@ -117,6 +117,9 @@ class HiTSRAdapter(BaseUpscaler):
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
         
+        # Check and install dependencies
+        self._check_dependencies()
+        
         # Load the model creation function
         create_model = self._load_hitsr_module()
         
@@ -145,6 +148,35 @@ class HiTSRAdapter(BaseUpscaler):
         self.model.net_g.eval()
         
         self._loaded = True
+    
+    def _check_dependencies(self):
+        """Check and optionally install HiT-SR dependencies."""
+        required_packages = {
+            "timm": "timm>=0.6.13",
+            "einops": "einops", 
+            "cv2": "opencv-python",
+            "scipy": "scipy"
+        }
+        
+        missing_packages = []
+        
+        for import_name, package_name in required_packages.items():
+            try:
+                __import__(import_name)
+            except ImportError:
+                missing_packages.append(package_name)
+        
+        if missing_packages:
+            error_msg = f"""
+Missing required dependencies for HiT-SR: {', '.join(missing_packages)}
+
+To install HiT-SR dependencies, run:
+    pip install superscale[hitsr]
+
+Or install manually:
+    pip install {' '.join(missing_packages)}
+"""
+            raise ImportError(error_msg)
     
     def _create_minimal_opt(self, checkpoint_path: Path) -> Dict[str, Any]:
         """Create minimal options dict for HiT-SR."""
