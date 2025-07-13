@@ -204,7 +204,28 @@ class HiTSRAdapter(BaseUpscaler):
             self.model.eval()
             
         except Exception as e:
-            raise RuntimeError(f"Failed to load HiT-SR model: {e}")
+            print(f"Native backend failed: {e}")
+            print("Falling back to third_party implementation...")
+            # Fallback to third_party with comprehensive mocking
+            create_model = self._load_from_third_party()
+            
+            try:
+                # Create minimal options for HiT-SR
+                opt = self._create_minimal_opt(checkpoint_path)
+                
+                # Create and load model using fallback
+                self.model = create_model(opt)
+                
+                # Access the actual model (BasicSR wraps it in net_g)
+                if hasattr(self.model, 'net_g'):
+                    self.model = self.model.net_g
+                
+                # Move to device and set eval mode
+                self.model = self.model.to(self.device)
+                self.model.eval()
+                
+            except Exception as fallback_error:
+                raise RuntimeError(f"Failed to load HiT-SR model with both native and fallback methods. Native error: {e}, Fallback error: {fallback_error}")
         
         self._loaded = True
     
@@ -259,7 +280,7 @@ Or install manually:
                 "type": self.variant,
                 "upscale": self.scale,
                 "in_chans": 3,
-                "img_size": 64,
+                "img_size": (64, 64),
                 "base_win_size": [8, 8],
                 "img_range": 1.0,
                 "depths": [6, 6, 6, 6],
