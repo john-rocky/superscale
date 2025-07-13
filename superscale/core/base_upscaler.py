@@ -234,7 +234,7 @@ class ImageProcessor:
             array = array.transpose(1, 2, 0)
         
         # Denormalize
-        if denormalize and array.max() <= 1.2:  # Allow for slight overshoot from model
+        if denormalize and array.max() <= 2.0:  # Allow for significant overshoot from model
             array = array * 255.0
         
         # Clamp and convert to uint8
