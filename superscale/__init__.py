@@ -7,6 +7,17 @@ with a diffusers-like API.
 
 __version__ = "0.1.0"
 
+# Import and register models
+def _register_models():
+    """Register all available models."""
+    try:
+        from .models.hitsr import adapter
+    except ImportError:
+        pass  # HiT-SR not available
+
+_register_models()
+
+
 # Lazy imports to avoid loading heavy dependencies on import
 def load(model: str, **kwargs):
     """Load a super-resolution model.

@@ -205,3 +205,35 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Model weights and checkpoints
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+checkpoints/
+pretrained_models/
+weights/
+
+# Dataset files
+datasets/
+data/
+
+# Outputs
+outputs/
+results/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# macOS
+.DS_Store
+
+# Keep example images
+!examples/**/*.png
+!examples/**/*.jpg
+!docs/**/*.png
+!docs/**/*.jpg
