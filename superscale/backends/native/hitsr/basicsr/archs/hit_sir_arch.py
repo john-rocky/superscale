@@ -6,7 +6,7 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
 import numpy as np
-from .utils.registry import ARCH_REGISTRY
+from ..utils.registry import ARCH_REGISTRY
 from huggingface_hub import PyTorchModelHubMixin
 
 class DFE(nn.Module):

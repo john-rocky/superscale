@@ -49,30 +49,86 @@ class HiTSRAdapter(BaseUpscaler):
     def _load_hitsr_module(self):
         """Load HiT-SR architecture directly from synced code."""
         try:
-            # Import HiT-SR architecture directly
+            # Import all HiT-SR architectures from synced code
             from ...backends.native.hitsr.basicsr.archs.hit_sir_arch import HiT_SIR
+            from ...backends.native.hitsr.basicsr.archs.hit_sng_arch import HiT_SNG  
+            from ...backends.native.hitsr.basicsr.archs.hit_srf_arch import HiT_SRF
             
-            # Create a simple model factory function
+            # Create a model factory function for different variants
             def create_hitsr_model(opt):
-                model = HiT_SIR(
-                    upscale=opt['network_g']['upscale'],
-                    in_chans=opt['network_g']['in_chans'],
-                    img_size=opt['network_g']['img_size'],
-                    base_win_size=opt['network_g']['base_win_size'],
-                    img_range=opt['network_g']['img_range'],
-                    depths=opt['network_g']['depths'],
-                    embed_dim=opt['network_g']['embed_dim'],
-                    num_heads=opt['network_g']['num_heads'],
-                    expansion_factor=opt['network_g']['expansion_factor'],
-                    resi_connection=opt['network_g']['resi_connection'],
-                    hier_win_ratios=opt['network_g']['hier_win_ratios'],
-                    upsampler=opt['network_g']['upsampler']
-                )
+                variant = opt['network_g']['type']
+                
+                if variant == 'HiT_SIR':
+                    model = HiT_SIR(
+                        upscale=opt['network_g']['upscale'],
+                        in_chans=opt['network_g']['in_chans'],
+                        img_size=opt['network_g']['img_size'],
+                        base_win_size=opt['network_g']['base_win_size'],
+                        img_range=opt['network_g']['img_range'],
+                        depths=opt['network_g']['depths'],
+                        embed_dim=opt['network_g']['embed_dim'],
+                        num_heads=opt['network_g']['num_heads'],
+                        expansion_factor=opt['network_g']['expansion_factor'],
+                        resi_connection=opt['network_g']['resi_connection'],
+                        hier_win_ratios=opt['network_g']['hier_win_ratios'],
+                        upsampler=opt['network_g']['upsampler']
+                    )
+                elif variant == 'HiT_SNG':
+                    model = HiT_SNG(
+                        upscale=opt['network_g']['upscale'],
+                        in_chans=opt['network_g']['in_chans'],
+                        img_size=opt['network_g']['img_size'],
+                        base_win_size=opt['network_g']['base_win_size'],
+                        img_range=opt['network_g']['img_range'],
+                        depths=opt['network_g']['depths'],
+                        embed_dim=opt['network_g']['embed_dim'],
+                        num_heads=opt['network_g']['num_heads'],
+                        expansion_factor=opt['network_g']['expansion_factor'],
+                        resi_connection=opt['network_g']['resi_connection'],
+                        hier_win_ratios=opt['network_g']['hier_win_ratios'],
+                        upsampler=opt['network_g']['upsampler']
+                    )
+                elif variant == 'HiT_SRF':
+                    model = HiT_SRF(
+                        upscale=opt['network_g']['upscale'],
+                        in_chans=opt['network_g']['in_chans'],
+                        img_size=opt['network_g']['img_size'],
+                        base_win_size=opt['network_g']['base_win_size'],
+                        img_range=opt['network_g']['img_range'],
+                        depths=opt['network_g']['depths'],
+                        embed_dim=opt['network_g']['embed_dim'],
+                        num_heads=opt['network_g']['num_heads'],
+                        expansion_factor=opt['network_g']['expansion_factor'],
+                        resi_connection=opt['network_g']['resi_connection'],
+                        hier_win_ratios=opt['network_g']['hier_win_ratios'],
+                        upsampler=opt['network_g']['upsampler']
+                    )
+                else:
+                    raise ValueError(f"Unknown HiT-SR variant: {variant}")
                 
                 # Load checkpoint
                 import torch
                 checkpoint = torch.load(opt['path']['pretrain_network_g'], map_location='cpu', weights_only=False)
-                model.load_state_dict(checkpoint, strict=True)
+                
+                # Handle different checkpoint formats
+                if isinstance(checkpoint, dict):
+                    if 'params' in checkpoint:
+                        # HuggingFace format with 'params' key
+                        state_dict = checkpoint['params']
+                    elif 'state_dict' in checkpoint:
+                        # Standard PyTorch format
+                        state_dict = checkpoint['state_dict']
+                    elif 'model' in checkpoint:
+                        # Some checkpoints store under 'model'
+                        state_dict = checkpoint['model']
+                    else:
+                        # Assume the checkpoint itself is the state_dict
+                        state_dict = checkpoint
+                else:
+                    # Direct state_dict
+                    state_dict = checkpoint
+                
+                model.load_state_dict(state_dict, strict=True)
                 
                 return model
             
