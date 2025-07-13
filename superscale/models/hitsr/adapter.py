@@ -62,23 +62,46 @@ class HiTSRAdapter(BaseUpscaler):
         if third_party_path.exists():
             sys.path.insert(0, str(third_party_path))
             try:
-                # Monkey patch to avoid torchvision version conflicts
+                # Comprehensive monkey patching for compatibility
                 import torch
                 
-                # Temporarily mock problematic torchvision imports
-                class MockTorchvision:
-                    class utils:
-                        @staticmethod
-                        def make_grid(*args, **kwargs):
-                            return args[0] if args else None
+                # Mock problematic modules to avoid import errors
+                class MockModule:
+                    def __init__(self, name="MockModule"):
+                        self._name = name
+                    def __getattr__(self, name):
+                        return MockModule(f"{self._name}.{name}")
+                    def __call__(self, *args, **kwargs):
+                        return None
+                    def __repr__(self):
+                        return f"<MockModule: {self._name}>"
                 
-                sys.modules['torchvision.utils'] = MockTorchvision.utils
+                # Mock comprehensive list of problematic imports
+                mock_modules = [
+                    'torchvision.utils',
+                    'torchvision.transforms.functional', 
+                    'torchvision.io',
+                    'torchvision.io.image',
+                    'torchvision.datasets',
+                    'torchvision.datasets._optical_flow',
+                    'torchvision.ops.misc',
+                    'timm.models.fx_features',
+                    'timm.models.layers',
+                    'utils'  # Prevent utils conflict
+                ]
                 
+                for module_name in mock_modules:
+                    sys.modules[module_name] = MockModule(module_name)
+                
+                # Add torch.library compatibility
                 if not hasattr(torch.library, 'register_fake'):
                     torch.library.register_fake = lambda x: lambda f: f
                 
                 from basicsr.models import build_model
                 return build_model
+            except Exception as e:
+                print(f"Warning: Failed to load HiT-SR from third_party: {e}")
+                raise ImportError("Could not load HiT-SR modules")
             finally:
                 if str(third_party_path) in sys.path:
                     sys.path.remove(str(third_party_path))
