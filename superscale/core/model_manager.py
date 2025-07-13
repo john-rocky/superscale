@@ -19,7 +19,7 @@ class ModelManager:
     
     # Model configurations with download info
     MODEL_CONFIGS = {
-        # HiT-SR Models (from HuggingFace)
+        # HiT-SR Models (from Google Drive)
         "hitsr-sir-x2": {
             "repo_id": "XiangZ/hit-sr",
             "filename": "hit-sir-2x",
@@ -33,10 +33,11 @@ class ModelManager:
             "type": "huggingface",
         },
         "hitsr-sir-x4": {
-            "repo_id": "XiangZ/hit-sr",
-            "filename": "hit-sir-4x",
+            "gdrive_id": "1P_b9WakJKYPVGJ1yc34ey8S_QXdDT4Ua",
+            "filename": "HiT-SIR-4x.pth",
             "size": "~3MB",
-            "type": "huggingface",
+            "sha256": None,
+            "type": "gdrive",
         },
         "hitsr-sng-x2": {
             "repo_id": "XiangZ/hit-sr",
@@ -150,7 +151,7 @@ class ModelManager:
             # Return a fake path that will trigger the model to load without weights
             return Path("dummy")
         
-        if config["type"] == "direct":
+        if config["type"] == "direct" or config["type"] == "gdrive":
             model_dir = self.cache_dir / "checkpoints" / model_name
             model_path = model_dir / config["filename"]
             if model_path.exists():
@@ -197,6 +198,8 @@ class ModelManager:
             return self._download_direct(model_name, config, progress_callback)
         elif config["type"] == "huggingface":
             return self._download_huggingface(model_name, config, progress_callback)
+        elif config["type"] == "gdrive":
+            return self._download_gdrive(model_name, config, progress_callback)
         else:
             raise ValueError(f"Unknown download type: {config['type']}")
     
@@ -250,7 +253,7 @@ class ModelManager:
             # Update metadata
             self.metadata[model_name] = {
                 "path": str(output_path),
-                "downloaded_at": str(Path.ctime(output_path)),
+                "downloaded_at": str(output_path.stat().st_ctime),
                 "size": output_path.stat().st_size,
                 "version": config.get("version", "unknown"),
             }
@@ -305,6 +308,60 @@ class ModelManager:
                 
         except Exception as e:
             raise RuntimeError(f"HuggingFace download failed: {e}")
+    
+    def _download_gdrive(
+        self,
+        model_name: str,
+        config: Dict[str, Any],
+        progress_callback: Optional[Callable[[float], None]] = None
+    ) -> Path:
+        """Download model from Google Drive using gdown."""
+        try:
+            import gdown
+        except ImportError:
+            raise ImportError(
+                "gdown is required for Google Drive downloads. "
+                "Install with: pip install gdown"
+            )
+        
+        model_dir = self.cache_dir / "checkpoints" / model_name
+        model_dir.mkdir(parents=True, exist_ok=True)
+        
+        output_path = model_dir / config["filename"]
+        
+        try:
+            # Download with gdown
+            print(f"Downloading from Google Drive: {config['gdrive_id']}")
+            success = gdown.download(
+                id=config["gdrive_id"],
+                output=str(output_path),
+                quiet=False
+            )
+            
+            if not success or not output_path.exists():
+                raise RuntimeError("gdown download failed")
+            
+            # Verify checksum if provided
+            if config.get("sha256"):
+                if not self._verify_checksum(output_path, config["sha256"]):
+                    raise ValueError("Checksum verification failed")
+            
+            # Update metadata
+            self.metadata[model_name] = {
+                "path": str(output_path),
+                "downloaded_at": str(output_path.stat().st_ctime),
+                "size": output_path.stat().st_size,
+                "version": config.get("version", "unknown"),
+            }
+            self._save_metadata()
+            
+            print(f"Downloaded to: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            if output_path.exists():
+                output_path.unlink()
+            raise RuntimeError(f"Google Drive download failed: {e}")
     
     def _verify_checksum(self, file_path: Path, expected_sha256: str) -> bool:
         """Verify file checksum."""

@@ -237,3 +237,8 @@ results/
 !examples/**/*.jpg
 !docs/**/*.png
 !docs/**/*.jpg
+# Model cache files
+*.pth
+*.ckpt
+*.safetensors
+.cache/

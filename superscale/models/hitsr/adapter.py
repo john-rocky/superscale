@@ -56,14 +56,17 @@ class HiTSRAdapter(BaseUpscaler):
             pass
         
         # Fallback to third_party if available (development mode)
-        third_party_path = Path(__file__).parent.parent.parent.parent.parent / "third_party" / "HiT-SR"
+        # Go up 5 levels: hitsr/adapter.py -> hitsr -> models -> superscale -> project_root
+        third_party_path = Path(__file__).parent.parent.parent.parent / "third_party" / "HiT-SR"
+        
         if third_party_path.exists():
             sys.path.insert(0, str(third_party_path))
             try:
-                from basicsr.models import create_model
-                return create_model
+                from basicsr.models import build_model
+                return build_model
             finally:
-                sys.path.remove(str(third_party_path))
+                if str(third_party_path) in sys.path:
+                    sys.path.remove(str(third_party_path))
         
         raise ImportError(
             "HiT-SR implementation not found. Please run sync_models.py or install in development mode."
@@ -79,17 +82,29 @@ class HiTSRAdapter(BaseUpscaler):
         # Load the model creation function
         create_model = self._load_hitsr_module()
         
-        # Create minimal options for HiT-SR
-        opt = self._create_minimal_opt(checkpoint_path)
+        # Patch torch.load for PyTorch 2.6 compatibility
+        import torch
+        original_load = torch.load
+        def patched_load(*args, **kwargs):
+            kwargs.setdefault('weights_only', False)
+            return original_load(*args, **kwargs)
+        torch.load = patched_load
         
-        # Create and load model
-        self.model = create_model(opt)
+        try:
+            # Create minimal options for HiT-SR
+            opt = self._create_minimal_opt(checkpoint_path)
+            
+            # Create and load model
+            self.model = create_model(opt)
+        finally:
+            # Restore original torch.load
+            torch.load = original_load
         
         # Move to device
-        self.model = self.model.to(self.device)
+        self.model.net_g = self.model.net_g.to(self.device)
         
         # Set to eval mode
-        self.model.eval()
+        self.model.net_g.eval()
         
         self._loaded = True
     
@@ -98,28 +113,33 @@ class HiTSRAdapter(BaseUpscaler):
         # This is a simplified version - actual implementation would need proper config
         opt = {
             "name": self.variant,
-            "model_type": "HiTSRModel",
+            "model_type": "HITModel", 
             "scale": self.scale,
             "num_gpu": 1 if self.device.type == "cuda" else 0,
             "dist": False,
-            "network_g": {
-                "type": self.variant.replace("HiT_", "HiT"),
-                "upscale": self.scale,
-                "in_chans": 3,
-                "img_size": 64,
-                "window_size": 16,
-                "img_range": 1.0,
-                "depths": [6, 6, 6, 6, 6, 6],
-                "embed_dim": 180,
-                "num_heads": [6, 6, 6, 6, 6, 6],
-                "mlp_ratio": 2,
-                "upsampler": "pixelshuffle",
-                "resi_connection": "1conv",
-            },
+            "is_train": False,
             "path": {
                 "pretrain_network_g": str(checkpoint_path),
                 "strict_load_g": True,
-                "resume_state": None,
+            },
+            "val": {
+                "save_img": False,
+                "use_chop": False,
+            },
+            "network_g": {
+                "type": self.variant,
+                "upscale": self.scale,
+                "in_chans": 3,
+                "img_size": 64,
+                "base_win_size": [8, 8],
+                "img_range": 1.0,
+                "depths": [6, 6, 6, 6],
+                "embed_dim": 60,
+                "num_heads": [6, 6, 6, 6],
+                "expansion_factor": 2,
+                "resi_connection": "1conv",
+                "hier_win_ratios": [0.5, 1, 2, 4, 6, 8],
+                "upsampler": "pixelshuffledirect",
             },
         }
         
