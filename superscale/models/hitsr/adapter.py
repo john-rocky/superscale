@@ -62,6 +62,22 @@ class HiTSRAdapter(BaseUpscaler):
         if third_party_path.exists():
             sys.path.insert(0, str(third_party_path))
             try:
+                # Monkey patch to avoid torchvision version conflicts
+                import torch
+                import sys
+                
+                # Temporarily mock problematic torchvision imports
+                class MockTorchvision:
+                    class utils:
+                        @staticmethod
+                        def make_grid(*args, **kwargs):
+                            return args[0] if args else None
+                
+                sys.modules['torchvision.utils'] = MockTorchvision.utils
+                
+                if not hasattr(torch.library, 'register_fake'):
+                    torch.library.register_fake = lambda x: lambda f: f
+                
                 from basicsr.models import build_model
                 return build_model
             finally:
