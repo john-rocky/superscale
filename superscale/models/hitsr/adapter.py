@@ -64,7 +64,6 @@ class HiTSRAdapter(BaseUpscaler):
             try:
                 # Monkey patch to avoid torchvision version conflicts
                 import torch
-                import sys
                 
                 # Temporarily mock problematic torchvision imports
                 class MockTorchvision:
