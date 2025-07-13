@@ -108,7 +108,7 @@ class ModelSynchronizer:
     
     def sync_model(self, model_name: str, force: bool = False) -> None:
         """Sync one model from third_party to backends/native."""
-        model_lower = model_name.lower()
+        model_lower = model_name.lower().replace("-", "")
         
         if model_lower not in self.SYNC_PATTERNS:
             raise ValueError(f"Unknown model: {model_name}")
@@ -116,7 +116,7 @@ class ModelSynchronizer:
         print(f"Syncing {model_name}...")
         
         src_dir = self.third_party_dir / model_name
-        dst_dir = self.backends_dir / model_lower
+        dst_dir = self.backends_dir / model_lower.replace("-", "")
         
         if not src_dir.exists():
             raise FileNotFoundError(f"Source directory not found: {src_dir}")
@@ -254,7 +254,7 @@ class ModelSynchronizer:
     
     def create_wrapper(self, model_name: str) -> None:
         """Create a wrapper module for easier imports."""
-        model_lower = model_name.lower()
+        model_lower = model_name.lower().replace("-", "")
         wrapper_file = self.backends_dir / model_lower / "__init__.py"
         
         if model_lower == "hitsr":

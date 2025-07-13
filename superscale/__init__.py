@@ -10,6 +10,13 @@ __version__ = "0.1.0"
 # Import and register models
 def _register_models():
     """Register all available models."""
+    # Dummy model (always available for testing)
+    try:
+        from .models.dummy import adapter
+    except ImportError:
+        pass
+    
+    # HiT-SR models
     try:
         from .models.hitsr import adapter
     except ImportError:

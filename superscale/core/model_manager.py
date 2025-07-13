@@ -19,34 +19,74 @@ class ModelManager:
     
     # Model configurations with download info
     MODEL_CONFIGS = {
-        # HiT-SR Models
+        # HiT-SR Models (from HuggingFace)
         "hitsr-sir-x2": {
-            "url": "https://github.com/XPixelGroup/HiT-SR/releases/download/v0.1.0/HiT-SIR-2x.pth",
-            "filename": "HiT-SIR-2x.pth",
-            "size": "49.7MB",
-            "sha256": None,  # Will be added when available
-            "type": "direct",
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sir-2x",
+            "size": "~3MB",
+            "type": "huggingface",
+        },
+        "hitsr-sir-x3": {
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sir-3x",
+            "size": "~3MB",
+            "type": "huggingface",
         },
         "hitsr-sir-x4": {
-            "url": "https://github.com/XPixelGroup/HiT-SR/releases/download/v0.1.0/HiT-SIR-4x.pth",
-            "filename": "HiT-SIR-4x.pth",
-            "size": "50.0MB",
-            "sha256": None,
-            "type": "direct",
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sir-4x",
+            "size": "~3MB",
+            "type": "huggingface",
+        },
+        "hitsr-sng-x2": {
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sng-2x",
+            "size": "~4MB",
+            "type": "huggingface",
+        },
+        "hitsr-sng-x3": {
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sng-3x",
+            "size": "~4MB",
+            "type": "huggingface",
         },
         "hitsr-sng-x4": {
-            "url": "https://github.com/XPixelGroup/HiT-SR/releases/download/v0.1.0/HiT-SNG-4x.pth",
-            "filename": "HiT-SNG-4x.pth",
-            "size": "54.8MB",
-            "sha256": None,
-            "type": "direct",
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-sng-4x",
+            "size": "~4MB",
+            "type": "huggingface",
+        },
+        "hitsr-srf-x2": {
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-srf-2x",
+            "size": "~3MB",
+            "type": "huggingface",
+        },
+        "hitsr-srf-x3": {
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-srf-3x",
+            "size": "~3MB",
+            "type": "huggingface",
         },
         "hitsr-srf-x4": {
-            "url": "https://github.com/XPixelGroup/HiT-SR/releases/download/v0.1.0/HiT-SRF-4x.pth",
-            "filename": "HiT-SRF-4x.pth",
-            "size": "180.4MB",
-            "sha256": None,
-            "type": "direct",
+            "repo_id": "XiangZ/hit-sr",
+            "filename": "hit-srf-4x",
+            "size": "~3MB",
+            "type": "huggingface",
+        },
+        
+        # Dummy models for testing
+        "dummy": {
+            "url": "none",
+            "filename": "dummy.pth",
+            "size": "0MB",
+            "type": "dummy",
+        },
+        "dummy-hermes": {
+            "url": "none", 
+            "filename": "dummy.pth",
+            "size": "0MB",
+            "type": "dummy",
         },
         
         # Placeholder for other models
@@ -105,6 +145,11 @@ class ModelManager:
         
         config = self.MODEL_CONFIGS[model_name]
         
+        # Dummy models don't need real files
+        if config["type"] == "dummy":
+            # Return a fake path that will trigger the model to load without weights
+            return Path("dummy")
+        
         if config["type"] == "direct":
             model_dir = self.cache_dir / "checkpoints" / model_name
             model_path = model_dir / config["filename"]
@@ -145,7 +190,10 @@ class ModelManager:
         
         print(f"Downloading {model_name} ({config.get('size', 'Unknown size')})...")
         
-        if config["type"] == "direct":
+        if config["type"] == "dummy":
+            # Dummy models don't need downloading
+            return Path("dummy")
+        elif config["type"] == "direct":
             return self._download_direct(model_name, config, progress_callback)
         elif config["type"] == "huggingface":
             return self._download_huggingface(model_name, config, progress_callback)
