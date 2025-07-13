@@ -47,68 +47,81 @@ class HiTSRAdapter(BaseUpscaler):
         self._model_module = None
     
     def _load_hitsr_module(self):
-        """Dynamically load HiT-SR modules."""
-        # Check if we have the native backend version
+        """Load HiT-SR architecture directly from synced code."""
         try:
-            from ...backends.native.hitsr import create_model
-            return create_model
-        except ImportError:
-            pass
-        
-        # Fallback to third_party if available (development mode)
-        # Go up 5 levels: hitsr/adapter.py -> hitsr -> models -> superscale -> project_root
+            # Import HiT-SR architecture directly
+            from ...backends.native.hitsr.basicsr.archs.hit_sir_arch import HiT_SIR
+            
+            # Create a simple model factory function
+            def create_hitsr_model(opt):
+                model = HiT_SIR(
+                    upscale=opt['network_g']['upscale'],
+                    in_chans=opt['network_g']['in_chans'],
+                    img_size=opt['network_g']['img_size'],
+                    base_win_size=opt['network_g']['base_win_size'],
+                    img_range=opt['network_g']['img_range'],
+                    depths=opt['network_g']['depths'],
+                    embed_dim=opt['network_g']['embed_dim'],
+                    num_heads=opt['network_g']['num_heads'],
+                    expansion_factor=opt['network_g']['expansion_factor'],
+                    resi_connection=opt['network_g']['resi_connection'],
+                    hier_win_ratios=opt['network_g']['hier_win_ratios'],
+                    upsampler=opt['network_g']['upsampler']
+                )
+                
+                # Load checkpoint
+                import torch
+                checkpoint = torch.load(opt['path']['pretrain_network_g'], map_location='cpu', weights_only=False)
+                model.load_state_dict(checkpoint, strict=True)
+                
+                return model
+            
+            return create_hitsr_model
+            
+        except ImportError as e:
+            # Fallback: try to load from third_party with comprehensive mocking
+            return self._load_from_third_party()
+    
+    def _load_from_third_party(self):
+        """Fallback method to load from third_party with mocking."""
         third_party_path = Path(__file__).parent.parent.parent.parent / "third_party" / "HiT-SR"
         
-        if third_party_path.exists():
-            sys.path.insert(0, str(third_party_path))
-            try:
-                # Comprehensive monkey patching for compatibility
-                import torch
-                
-                # Mock problematic modules to avoid import errors
-                class MockModule:
-                    def __init__(self, name="MockModule"):
-                        self._name = name
-                    def __getattr__(self, name):
-                        return MockModule(f"{self._name}.{name}")
-                    def __call__(self, *args, **kwargs):
-                        return None
-                    def __repr__(self):
-                        return f"<MockModule: {self._name}>"
-                
-                # Mock comprehensive list of problematic imports
-                mock_modules = [
-                    'torchvision.utils',
-                    'torchvision.transforms.functional', 
-                    'torchvision.io',
-                    'torchvision.io.image',
-                    'torchvision.datasets',
-                    'torchvision.datasets._optical_flow',
-                    'torchvision.ops.misc',
-                    'timm.models.fx_features',
-                    'timm.models.layers',
-                    'utils'  # Prevent utils conflict
-                ]
-                
-                for module_name in mock_modules:
-                    sys.modules[module_name] = MockModule(module_name)
-                
-                # Add torch.library compatibility
-                if not hasattr(torch.library, 'register_fake'):
-                    torch.library.register_fake = lambda x: lambda f: f
-                
-                from basicsr.models import build_model
-                return build_model
-            except Exception as e:
-                print(f"Warning: Failed to load HiT-SR from third_party: {e}")
-                raise ImportError("Could not load HiT-SR modules")
-            finally:
-                if str(third_party_path) in sys.path:
-                    sys.path.remove(str(third_party_path))
+        if not third_party_path.exists():
+            raise ImportError("HiT-SR implementation not found. Please run sync_models.py")
         
-        raise ImportError(
-            "HiT-SR implementation not found. Please run sync_models.py or install in development mode."
-        )
+        sys.path.insert(0, str(third_party_path))
+        try:
+            # Comprehensive mocking for problematic imports  
+            import torch
+            
+            class MockModule:
+                def __init__(self, name="MockModule"):
+                    self._name = name
+                def __getattr__(self, name):
+                    return MockModule(f"{self._name}.{name}")
+                def __call__(self, *args, **kwargs):
+                    return None
+            
+            # Mock all problematic modules
+            mock_modules = [
+                'torchvision.utils', 'torchvision.transforms.functional',
+                'torchvision.io', 'torchvision.datasets', 'utils',
+                'timm.models.fx_features', 'timm.models.layers'
+            ]
+            
+            for module_name in mock_modules:
+                sys.modules[module_name] = MockModule(module_name)
+            
+            if not hasattr(torch.library, 'register_fake'):
+                torch.library.register_fake = lambda x: lambda f: f
+            
+            from basicsr.models import build_model
+            return build_model
+        except Exception as e:
+            raise ImportError(f"Could not load HiT-SR: {e}")
+        finally:
+            if str(third_party_path) in sys.path:
+                sys.path.remove(str(third_party_path))
     
     def load_weights(self, checkpoint_path: Union[str, Path], **kwargs) -> None:
         """Load HiT-SR model weights."""
@@ -123,29 +136,19 @@ class HiTSRAdapter(BaseUpscaler):
         # Load the model creation function
         create_model = self._load_hitsr_module()
         
-        # Patch torch.load for PyTorch 2.6 compatibility
-        import torch
-        original_load = torch.load
-        def patched_load(*args, **kwargs):
-            kwargs.setdefault('weights_only', False)
-            return original_load(*args, **kwargs)
-        torch.load = patched_load
-        
         try:
             # Create minimal options for HiT-SR
             opt = self._create_minimal_opt(checkpoint_path)
             
             # Create and load model
             self.model = create_model(opt)
-        finally:
-            # Restore original torch.load
-            torch.load = original_load
-        
-        # Move to device
-        self.model.net_g = self.model.net_g.to(self.device)
-        
-        # Set to eval mode
-        self.model.net_g.eval()
+            
+            # Move to device and set eval mode
+            self.model = self.model.to(self.device)
+            self.model.eval()
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to load HiT-SR model: {e}")
         
         self._loaded = True
     
@@ -240,14 +243,9 @@ Or install manually:
         """Run HiT-SR inference."""
         lq = preprocessed["lq"]
         
-        # HiT-SR expects the input in the model
-        self.model.lq = lq
-        
-        # Run test
-        self.model.test()
-        
-        # Get output
-        output = self.model.output
+        with torch.no_grad():
+            # Direct inference with the PyTorch model
+            output = self.model(lq)
         
         return output
     
