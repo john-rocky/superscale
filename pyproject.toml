@@ -1,0 +1,183 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "superscale"
+version = "0.1.0"
+description = "Universal super-resolution toolkit with diffusers-like API"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.8"
+authors = [
+    {name = "Superscale Contributors"},
+]
+maintainers = [
+    {name = "Superscale Contributors"},
+]
+keywords = [
+    "super-resolution",
+    "image-upscaling", 
+    "deep-learning",
+    "computer-vision",
+    "diffusers",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "torch>=2.2,<2.4",
+    "pillow>=10.0",
+    "numpy>=1.24,<2.0",
+    "tqdm>=4.65",
+    "pyyaml>=6.0",
+    "huggingface-hub>=0.20",
+    "requests>=2.28",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+# Model-specific minimal dependencies
+hitsr = [
+    "opencv-python>=4.8",
+    "scipy>=1.9",
+    "timm>=0.9,<1.0",
+    "einops>=0.7",
+]
+tsdsr = [
+    "diffusers>=0.29,<0.33",
+    "transformers>=4.40,<4.50",
+    "safetensors>=0.4",
+    "omegaconf>=2.3",
+    "peft>=0.10",
+]
+varsr = [
+    "diffusers>=0.32,<0.34",
+    "transformers>=4.37,<4.40",
+    "einops>=0.7",
+]
+# GUI dependencies
+gui = [
+    "gradio>=4.0",
+]
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "black>=23.0",
+    "mypy>=1.0",
+    "twine>=4.0",
+    "build>=0.10",
+]
+# All models and features
+all = [
+    "superscale[hitsr,tsdsr,varsr,gui]",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/superscale"
+Documentation = "https://superscale.readthedocs.io"
+Repository = "https://github.com/yourusername/superscale"
+Issues = "https://github.com/yourusername/superscale/issues"
+
+[project.scripts]
+superscale = "superscale.cli.main:cli"
+
+[tool.hatch.version]
+path = "superscale/__init__.py"
+
+[tool.hatch.build]
+include = [
+    "superscale/**/*.py",
+    "superscale/**/*.yaml",
+    "superscale/**/*.yml", 
+    "superscale/**/*.json",
+    "superscale/backends/native/*/LICENSE",
+    "README.md",
+    "LICENSE",
+    "LICENSE-3rdparty.md",
+]
+exclude = [
+    "*.pyc",
+    "__pycache__",
+    ".git",
+    ".gitignore",
+    "third_party/**",  # Exclude submodules completely
+    "**/*_test.py",
+    "**/test_*.py",
+    "tests/**",
+    "docs/**",
+    "examples/**",
+    "scripts/**",
+    "*.ipynb",
+    ".DS_Store",
+    "*.egg-info",
+    "dist/**",
+    "build/**",
+    "HiT-SR/**",  # Exclude original model repos
+    "TSD-SR/**",
+    "VARSR/**",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["superscale"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"LICENSE-3rdparty.md" = "superscale/LICENSE-3rdparty.md"
+
+[tool.ruff]
+target-version = "py38"
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501", "E731"]
+exclude = [
+    "third_party",
+    "HiT-SR",
+    "TSD-SR", 
+    "VARSR",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311"]
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.ruff_cache
+  | build
+  | dist
+  | third_party
+  | HiT-SR
+  | TSD-SR
+  | VARSR
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+exclude = [
+    "third_party",
+    "HiT-SR",
+    "TSD-SR",
+    "VARSR",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
