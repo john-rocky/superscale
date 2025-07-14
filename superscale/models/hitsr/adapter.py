@@ -46,6 +46,62 @@ class HiTSRAdapter(BaseUpscaler):
         # Will be loaded by load_weights
         self._model_module = None
     
+    def _display_summoning_ritual(self):
+        """Display magical summoning ritual for HiT-SR models."""
+        import time
+        
+        # Deity mapping
+        deity_map = {
+            "HiT_SIR": ("Athena", "Goddess of Wisdom and Strategic Warfare"),
+            "HiT_SNG": ("Apollo", "God of Light, Music, and Prophecy"),
+            "HiT_SRF": ("Artemis", "Goddess of the Hunt and the Moon"),
+        }
+        
+        deity, title = deity_map.get(self.variant, ("Unknown Deity", "???"))
+        
+        print("\n" + "="*60)
+        print("🌟 INITIATING DIVINE SUMMONING RITUAL 🌟")
+        print("="*60)
+        time.sleep(0.3)
+        
+        # Draw magic circle
+        print("\n         ⭐️     ✨     ⭐️")
+        print("    ✨                   ✨")
+        print("  ⭐️    ╔═══════════╗    ⭐️")
+        print(" ✨     ║  ∞  ◊  ∞  ║     ✨")
+        print("⭐️      ║  ◊ 🏛️  ◊  ║      ⭐️")
+        print(" ✨     ║  ∞  ◊  ∞  ║     ✨")
+        print("  ⭐️    ╚═══════════╝    ⭐️")
+        print("    ✨                   ✨")
+        print("         ⭐️     ✨     ⭐️")
+        time.sleep(0.5)
+        
+        print(f"\n🏛️  Summoning {deity}, {title}")
+        print(f"📜 Model: {self.model_name}")
+        print(f"⚡ Scale Factor: {self.scale}x")
+        time.sleep(0.3)
+        
+        # Incantation
+        print("\n🔮 Reciting the ancient incantation...")
+        incantations = [
+            "「Ex machina, surge et transcende」",
+            "「Per sapientiam deorum, imaginem amplifica」",
+            f"「{deity}, hear our call! Grant us your divine power!」"
+        ]
+        
+        for incantation in incantations:
+            print(f"   {incantation}")
+            time.sleep(0.4)
+        
+        print("\n⚡ The portal opens... Divine energy flows...")
+        print("✨ " + "█" * 20 + " ✨")
+        time.sleep(0.5)
+        
+        print(f"\n🌟 SUCCESS! {deity} has answered your summons!")
+        print("🏛️  The HiT-SR model materializes from the digital Olympus!")
+        print("="*60 + "\n")
+        time.sleep(0.3)
+    
     def _load_hitsr_module(self):
         """Load HiT-SR architecture directly from synced code."""
         try:
@@ -186,6 +242,9 @@ class HiTSRAdapter(BaseUpscaler):
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
         
+        # Display summoning ritual
+        self._display_summoning_ritual()
+        
         # Check and install dependencies
         self._check_dependencies()
         
@@ -201,6 +260,13 @@ class HiTSRAdapter(BaseUpscaler):
             
             # Move to device and set eval mode
             self.model = self.model.to(self.device)
+            
+            # Ensure dtype consistency (important for GPU inference)
+            # HiT-SR has issues with float16 due to hardcoded .float() calls
+            # Force float32 for stability
+            self.model = self.model.to(dtype=torch.float32)
+            self.dtype = torch.float32
+                
             self.model.eval()
             
         except Exception as e:
@@ -222,12 +288,29 @@ class HiTSRAdapter(BaseUpscaler):
                 
                 # Move to device and set eval mode
                 self.model = self.model.to(self.device)
+                
+                # Ensure dtype consistency (important for GPU inference)
+                # HiT-SR has issues with float16 due to hardcoded .float() calls
+                # Force float32 for stability
+                self.model = self.model.to(dtype=torch.float32)
+                self.dtype = torch.float32
+                    
                 self.model.eval()
                 
             except Exception as fallback_error:
                 raise RuntimeError(f"Failed to load HiT-SR model with both native and fallback methods. Native error: {e}, Fallback error: {fallback_error}")
         
         self._loaded = True
+        
+        # Display completion message
+        deity = {
+            "HiT_SIR": "Athena",
+            "HiT_SNG": "Apollo", 
+            "HiT_SRF": "Artemis"
+        }.get(self.variant, "Unknown Deity")
+        
+        print(f"⚔️  {deity}'s blessing is now upon you!")
+        print(f"🌟 The model stands ready to enhance your images with divine power!\n")
     
     def _check_dependencies(self):
         """Check and optionally install HiT-SR dependencies."""
@@ -295,6 +378,37 @@ Or install manually:
         
         return opt
     
+    def upscale(
+        self,
+        image: Union[Image.Image, np.ndarray],
+        scale: int,
+        **kwargs
+    ) -> Image.Image:
+        """Override upscale to disable autocast for HiT-SR."""
+        if not self._loaded:
+            raise RuntimeError("Model not loaded. Call load_weights() first.")
+        
+        # Convert numpy array to PIL Image if needed
+        if isinstance(image, np.ndarray):
+            image = Image.fromarray(image)
+        
+        # Store original size
+        original_size = image.size
+        
+        # Preprocess
+        preprocessed = self.preprocess(image, scale)
+        
+        # Inference - always disable autocast for HiT-SR
+        with torch.no_grad():
+            if self.device.type == "cuda" and hasattr(torch.cuda.amp, 'autocast'):
+                with torch.cuda.amp.autocast(enabled=False):
+                    output = self.forward(preprocessed, **kwargs)
+            else:
+                output = self.forward(preprocessed, **kwargs)
+        
+        # Postprocess
+        return self.postprocess(output, original_size)
+    
     def preprocess(
         self,
         image: Union[Image.Image, np.ndarray, torch.Tensor],
@@ -304,8 +418,8 @@ Or install manually:
         if scale != self.scale:
             raise ValueError(f"Model supports {self.scale}x scaling, got {scale}x")
         
-        # Convert to tensor
-        tensor = ImageProcessor.image_to_tensor(image, dtype=self.dtype, normalize=True)
+        # Convert to tensor - always use float32 for HiT-SR
+        tensor = ImageProcessor.image_to_tensor(image, dtype=torch.float32, normalize=True)
         
         # Move to device
         tensor = tensor.to(self.device)
@@ -320,9 +434,8 @@ Or install manually:
         """Run HiT-SR inference."""
         lq = preprocessed["lq"]
         
-        with torch.no_grad():
-            # Direct inference with the PyTorch model
-            output = self.model(lq)
+        # Direct inference - autocast is already handled in upscale()
+        output = self.model(lq)
         
         return output
     

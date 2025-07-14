@@ -21,6 +21,12 @@ def _register_models():
         from .models.hitsr import adapter
     except ImportError:
         pass  # HiT-SR not available
+    
+    # TSD-SR models
+    try:
+        from .models.tsdsr import adapter
+    except ImportError:
+        pass  # TSD-SR not available
 
 _register_models()
 

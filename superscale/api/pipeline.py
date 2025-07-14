@@ -75,7 +75,7 @@ class SuperscalePipeline:
         
         return model_instance
     
-    def _get_checkpoint_path(self, model_name: str) -> Path:
+    def _get_checkpoint_path(self, model_name: str) -> Optional[Path]:
         """Get checkpoint path for model."""
         from ..core.model_manager import get_model_manager
         
@@ -86,6 +86,10 @@ class SuperscalePipeline:
         
         if checkpoint_path:
             return checkpoint_path
+        
+        # For TSD-SR models, return None to trigger auto-download in adapter
+        if model_name.startswith("tsdsr"):
+            return None
         
         # If download is enabled, download the model
         if self.download:

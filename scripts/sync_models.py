@@ -47,29 +47,31 @@ class ModelSynchronizer:
         },
         "tsdsr": {
             "include": [
-                # Core SD3 modules
-                "ldm_patched/modules/sd3/*.py",
-                "ldm_patched/modules/model_*.py",
-                "ldm_patched/modules/sd.py",
-                # LoRA support
-                "ldm_patched/modules/lora*.py",
+                # Core model files
+                "models/autoencoder_kl.py",
                 # Essential utils
-                "ldm_patched/modules/utils.py",
-                "ldm_patched/modules/ops.py",
+                "utils/util.py",
+                "utils/vaehook.py",
+                "utils/wavelet_color_fix.py",
+                "utils/device.py",
+                # Test scripts for reference
+                "test/test_tsdsr.py",
                 # Configs
-                "configs/*.yaml",
-                # Download utils
-                "download_util.py",
+                "config/*.yaml",
             ],
             "exclude": [
-                "test_*.py",
+                "train_*.py",
                 "benchmark_*.py",
-                "**/test/**",
+                "**/train/**",
                 "*.ipynb",
+                "basicsr/**",
+                "data/**",
             ],
             "rename": {
-                "ldm_patched/modules": "modules",
-                "configs": "configs",
+                "models": "models",
+                "utils": "utils",
+                "config": "configs",
+                "test": "examples",
             },
         },
         "varsr": {
@@ -220,8 +222,8 @@ class ModelSynchronizer:
                 
                 # Update relative imports for TSD-SR
                 if "tsdsr" in str(py_file):
-                    content = content.replace('from ldm_patched.', 'from .')
-                    content = content.replace('import ldm_patched.', 'import .')
+                    # No specific import updates needed for TSD-SR as it uses relative imports already
+                    pass
                 
                 # Remove empty lines at the beginning
                 content = content.lstrip('\n')
@@ -274,10 +276,18 @@ def create_model(opt):
         elif model_lower == "tsdsr":
             content = '''"""TSD-SR backend wrapper."""
 
-from .modules.sd3 import *
-from .modules.model_management import *
+from .models.autoencoder_kl import AutoencoderKL
+from .utils.util import load_lora_state_dict
+from .utils.wavelet_color_fix import adain_color_fix, wavelet_color_fix
+from .utils.vaehook import _init_tiled_vae
 
-# Additional exports as needed
+__all__ = [
+    'AutoencoderKL',
+    'load_lora_state_dict',
+    'adain_color_fix',
+    'wavelet_color_fix',
+    '_init_tiled_vae',
+]
 '''
         elif model_lower == "varsr":
             content = '''"""VARSR backend wrapper."""
